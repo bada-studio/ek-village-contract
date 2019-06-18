@@ -103,7 +103,7 @@ public:
 
         player_table players("eosknightsio"_n, "eosknightsio"_n.value);
         auto piter = players.find(from.value);
-        eosio::check(piter == players.cend(), "signup ek first");
+        eosio::check(piter != players.cend(), "signup ek first");
 
         village_table table(self, self.value);
         auto iter = table.find(from.value);
