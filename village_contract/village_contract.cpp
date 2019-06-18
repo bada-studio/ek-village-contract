@@ -122,7 +122,7 @@ public:
         // read items
         item_table items("eosknightsio"_n, "eosknightsio"_n.value);
         auto iter = items.find(from.value);
-        eosio::check(iter != items.cend(), "can not found item");
+        eosio::check(iter != items.cend(), "no items");
         const auto &rows = iter->rows;
         
         // calculate total attack
@@ -159,7 +159,6 @@ public:
             ).send();
 
             remove_buildings(from, positions, 0, 0);
-
         } else {
             table.modify(bditer, self, [&](auto &target) {
                 int index = get_building_idx(target.rows, pos);
@@ -254,8 +253,8 @@ private:
                 return mid;
             }
         }
-        
-        eosio::check(false, "can not found item");
+
+        eosio::check(false, "can not found building");
         return -1;
     }
 
@@ -279,7 +278,7 @@ private:
             }
         }
         
-        village.rows.insert(village.rows.cbegin() + mid, bd);
+        village.rows.insert(village.rows.cbegin() + left, bd);
     }
 
     void remove_buildings(name from, 
