@@ -101,7 +101,9 @@ public:
     void initvill(name from) {
         require_auth(from);
 
-        // todo: from check (is in ek?)
+        player_table players("eosknightsio"_n, "eosknightsio"_n.value);
+        auto piter = players.find(from.value);
+        eosio::check(piter == players.cend(), "signup ek first");
 
         village_table table(self, self.value);
         auto iter = table.find(from.value);
@@ -151,13 +153,20 @@ public:
             });
         }
 
-        // todo: remove pickaxes
+        // remove pickaxes
+        action(permission_level{ self, "active"_n },
+               "eosknightsio"_n, "vrmitem"_n,
+               std::make_tuple(from, pickaxes)
+        ).send();
     }
 
 private:
     bool is_pickaxe(int32_t code) {
-        // todo
-        return true;
+        if (code == 206 || code == 217 || code == 227) {
+            return true;
+        }
+
+        return false;
     }
 
     int32_t get_attack(const itemrow &item) {
