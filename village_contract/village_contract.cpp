@@ -178,7 +178,7 @@ private:
         // pickaxe has attack stat on a stat1
         uint32_t dna = item.dna;
         uint32_t rate1 = dna & 0xFF; 
-        return rule->stat1_rand_range + get_variation_value(rule->stat1_rand_range, (int)rate1);
+        return rule->stat1 + get_variation_value(rule->stat1_rand_range, (int)rate1);
     }
 
     void add_obstacle(village &village) {
