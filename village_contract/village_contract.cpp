@@ -145,7 +145,21 @@ public:
             // remove building
             std::vector<uint32_t> positions;
             positions.push_back(pos);
+
+            // find reward mw rule
+            rbdrecipe_table recipet(self, self.value);
+            auto riter = recipet.find(bd.code);
+            eosio::check(riter != recipet.cend(), "can not found rule");
+            int32_t mw = riter->rows[bd.level - 1].mw;
+
+            // add reward mw
+            action(permission_level{ self, "active"_n },
+                   "eosknightsio"_n, "vmw"_n,
+                   std::make_tuple(from, mw)
+            ).send();
+
             remove_buildings(from, positions, 0, 0);
+
         } else {
             table.modify(bditer, self, [&](auto &target) {
                 int index = get_building_idx(target.rows, pos);
