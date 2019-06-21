@@ -22,6 +22,7 @@ using eosio::name;
 #include "table/rule/rbdrecipe.hpp"
 #include "table/rule/rvillgen.hpp"
 #include "table/rule/ritem.hpp"
+#include "table/rule/ritemlv.hpp"
 #include "table/rule/rmaterial.hpp"
 #include "table/user/village.hpp"
 #include "table/user/player.hpp"
@@ -191,7 +192,17 @@ private:
         // pickaxe has attack stat on a stat1
         uint32_t dna = item.dna;
         uint32_t rate1 = dna & 0xFF; 
-        return rule->stat1 + get_variation_value(rule->stat1_rand_range, (int)rate1);
+        uint32_t stat = rule->stat1 + get_variation_value(rule->stat1_rand_range, (int)rate1);
+
+        if (item.level > 1) {
+            ritemlv_table lv_rules("eosknightsio"_n, "eosknightsio"_n.value);
+            auto lv_rule = lv_rules.find(item.level);
+            eosio::check(lv_rule != lv_rules.cend(), "can not found item level rule");
+            auto bonus = lv_rule->bonus;
+            stat = apply_bonus_stat(stat, bonus);
+        }
+
+        return stat;
     }
 
     void add_obstacle(village &village) {
@@ -201,8 +212,8 @@ private:
 
         // add random position
         std::vector<int> positions;
-        for (int y = 0; y < 7; y++) {
-            for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 7; x++) {
                 positions.push_back(y * 10 + x);
             }
         }
