@@ -116,6 +116,33 @@ public:
         });
     }
 
+#ifdef TESTNET
+    // todo remove it
+    [[eosio::action]]
+    void initvilltest(name from) {
+        require_auth(from);
+
+        player_table players("eosknightsio"_n, "eosknightsio"_n.value);
+        auto piter = players.find(from.value);
+        eosio::check(piter != players.cend(), "signup ek first");
+
+        village_table table(self, self.value);
+        auto iter = table.find(from.value);
+        if (iter != table.cend()) {
+            table.modify(iter, self, [&](auto &target) {
+                target.rows.clear();
+                add_obstacle(target);
+            });
+            return;
+        }
+
+        table.emplace(self, [&](auto &target) {
+            target.owner = from;
+            add_obstacle(target);
+        });
+    }
+#endif
+
     [[eosio::action]]
     void digbd(name from, int32_t pos, int32_t id, std::vector<int32_t> pickaxes) {
         require_auth(from);
