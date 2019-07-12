@@ -9,11 +9,11 @@ public:
 
 public:
     static uint32_t now_shifted() {
-        return eosio::block_timestamp().to_time_point().sec_since_epoch() / 1'000'000 - origin;
+        return eosio::current_time_point().sec_since_epoch() - origin;
     }
 
     static uint64_t now() {
-        return eosio::block_timestamp().to_time_point().sec_since_epoch() / 1'000'000;
+        return eosio::current_time_point().sec_since_epoch();
     }
 };
 
