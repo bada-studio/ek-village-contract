@@ -135,6 +135,7 @@ public:
 
         table.emplace(self, [&](auto &target) {
             target.owner = from;
+            target.last_mw_sec = time_util::now();
             add_obstacle(target);
         });
     }
@@ -217,8 +218,6 @@ public:
             });
         }
 
-        gen_obstacle( from );
-
         // remove pickaxes
         action(permission_level{ self, "active"_n },
                "eosknightsio"_n, "vrmitem"_n,
@@ -258,60 +257,24 @@ public:
         std::map<uint16_t, uint8_t>::iterator igiter;
 
         if( igt_material == recipe.ig_type1 ) {
-            igiter = matigs.find(recipe.ig_code1);
-            if( igiter != matigs.end() ) {
-                igiter->second += recipe.ig_count1;
-            }
-            else {
-                matigs[recipe.ig_code1] = recipe.ig_count1;
-            }
+            matigs[recipe.ig_code1] = recipe.ig_count1;
         }
         else if(igt_item == recipe.ig_type1 ) {
-            igiter = itemigs.find(recipe.ig_code1);
-            if( igiter != itemigs.end() ) {
-                igiter->second += recipe.ig_count1;
-            }
-            else {
-                itemigs[recipe.ig_code1] = recipe.ig_count1;
-            }
+            itemigs[recipe.ig_code1] = recipe.ig_count1;
         }
 
         if( igt_material == recipe.ig_type2 ) {
-            igiter = matigs.find(recipe.ig_code2);
-            if( igiter != matigs.end() ) {
-                igiter->second += recipe.ig_count2;
-            }
-            else {
-                matigs[recipe.ig_code2] = recipe.ig_count2;
-            }
+            matigs[recipe.ig_code2] = recipe.ig_count2;
         }
         else if(igt_item == recipe.ig_type2 ) {
-            igiter = itemigs.find(recipe.ig_code2);
-            if( igiter != itemigs.end() ) {
-                igiter->second += recipe.ig_count2;
-            }
-            else {
-                itemigs[recipe.ig_code2] = recipe.ig_count2;
-            }
+            itemigs[recipe.ig_code2] = recipe.ig_count2;
         }
 
         if( igt_material == recipe.ig_type3 ) {
-            igiter = matigs.find(recipe.ig_code3);
-            if( igiter != matigs.end() ) {
-                igiter->second += recipe.ig_count3;
-            }
-            else {
-                matigs[recipe.ig_code3] = recipe.ig_count3;
-            }
+            matigs[recipe.ig_code3] = recipe.ig_count3;
         }
         else if(igt_item == recipe.ig_type3 ) {
-            igiter = itemigs.find(recipe.ig_code3);
-            if( igiter != itemigs.end() ) {
-                igiter->second += recipe.ig_count3;
-            }
-            else {
-                itemigs[recipe.ig_code3] = recipe.ig_count3;
-            }
+            itemigs[recipe.ig_code3] = recipe.ig_count3;
         }
 
         if( 0 != matigs.size() ) {
@@ -335,8 +298,6 @@ public:
             bd.y = y;
             village.vp += recipe.point;
             add_building(village, bd);
-
-            gen_obstacle( from );
         });
     }
 
@@ -345,7 +306,7 @@ public:
         require_auth(from);
 
         // check build count
-        eosio::check( poses.size() >= 3 && bdids.size() >= 3, "at least three buildings are required" );
+        eosio::check( poses.size() == 3 && bdids.size() == 3, "building merging requires only three buildings." );
 
         // read building
         village_table table(self, self.value);
@@ -400,8 +361,6 @@ public:
 
         // update and delete
         uplete_buildings( from, upbds, delbds, true, recipe.point );
-        
-        gen_obstacle( from );
     }
 
     [[eosio::action]]
@@ -449,15 +408,11 @@ public:
 
         // update and delete
         uplete_buildings( from, upbds, delbds, false, 0 );
-
-        gen_obstacle( from );
     }
 
     [[eosio::action]]
     void collectmw( name from ) {
         require_auth(from);
-
-        rbdrecipe_table recipet(self, self.value);
 
         // read village
         village_table table(self, self.value);
@@ -466,7 +421,8 @@ public:
 
         uint64_t now = time_util::now();
         uint64_t diffmin = (now - viter->last_mw_sec) / time_util::min;
-        int32_t totmw = 0;
+        uint8_t toplv = 0;
+        uint8_t higherindex = 0;
         
         for( int i =0; i < viter->rows.size(); ++i ) {
             auto bd = viter->rows[i];
@@ -475,26 +431,31 @@ public:
                 continue;
             }
 
-            // find reward mw rule
-            auto riter = recipet.find(bd.code);
-            eosio::check(riter != recipet.cend(), "can not found rule");
-            uint32_t mwperhour = riter->rows[bd.level - 1].param1; // amount per hour 
-            uint32_t mwmaxaccu = riter->rows[bd.level - 1].param2; // maximum accumulation amount
-
-            uint32_t mw = (mwperhour / (float)time_util::min * diffmin);
-            totmw += mw >= mwmaxaccu ? mwmaxaccu : mw;
+            if( bd.level > toplv ) {
+                toplv = bd.level;
+                higherindex = i;
+            }
         }
 
-        gen_obstacle( from );
+        auto higherbd = viter->rows[higherindex];
 
-        if( totmw > 0 ) {
+        // find reward mw rule
+        rbdrecipe_table recipet(self, self.value);
+        auto riter = recipet.find(higherbd.code);
+        eosio::check(riter != recipet.cend(), "can not found rule");
+        uint32_t mwperhour = riter->rows[higherbd.level - 1].param1; // amount per hour 
+        uint32_t mwmaxaccu = riter->rows[higherbd.level - 1].param2; // maximum accumulation amount
+        uint32_t mw = (mwperhour / (float)time_util::min * diffmin);
+        mw = mw >= mwmaxaccu ? mwmaxaccu : mw;
+
+        if( mw > 0 ) {
             table.modify(viter, self, [&](auto& village){
                 village.last_mw_sec = now;
             });
 
             action(permission_level{ self, "active"_n },
                    "eosknightsio"_n, "vmw"_n,
-                   std::make_tuple(from, totmw)
+                   std::make_tuple(from, mw)
             ).send();
         }
     }
@@ -513,7 +474,6 @@ public:
 
         table.modify(viter, self, [&](auto& village){
             village.expand = expn;
-            gen_obstacle( from );
         });
     }
 
@@ -803,52 +763,6 @@ private:
             }
 
             village.vp += vp;
-        });
-    }
-
-    void gen_obstacle(name from) {
-        village_table table(self, self.value);
-        auto viter = table.find(from.value);
-        eosio::check(viter != table.cend(), "have no village");
-
-        rvillgen_table gent(self, self.value);
-        auto ruleset = *gent.cbegin();
-
-        uint32_t nextno = viter->last_ost_no + 1;
-        if (nextno >= ruleset.rows.size()) {
-            nextno = 1;
-        }
-        auto rule = ruleset.rows[nextno - 1];
-
-        // check time
-        uint64_t now = time_util::now();
-        uint16_t diffh = (now - viter->last_ost_sec) / time_util::hour;
-        if (diffh < rule.hour) {
-            return;
-        }
-
-        // find empty pos
-        uint32_t pos = get_empty_pos(viter->rows, viter->expand);
-
-        // find recipe
-        rbdrecipe_table recipet(self, self.value);
-        auto iter = recipet.find(rule.code);
-        eosio::check(iter != recipet.cend(), "can not found rule");
-        auto recipe = iter->rows[rule.level - 1];
-
-        table.modify(viter, self, [ & ](auto & village) {
-            building bd;
-            bd.id = ++village.last_id;
-            bd.code = rule.code;
-            bd.level = rule.level;
-            bd.hp = recipe.hp;
-            bd.x = pos % 10;
-            bd.y = pos / 10;
-
-            village.last_ost_no = nextno;
-            uint16_t remainhour = diffh - rule.hour >= 48 ? 48 : (diffh - rule.hour);
-            village.last_ost_sec = now - remainhour * time_util::hour;
-            add_building(village, bd);
         });
     }
 
