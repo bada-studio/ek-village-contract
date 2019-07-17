@@ -386,9 +386,6 @@ public:
             eosio::check( movetox >= 0 && movetox <= 6, "x position is wrong" );
             eosio::check( movetoy >= 0 && movetoy <= height - 1, "y position is wrong" );
 
-            // check empty position
-            eosio::check( is_empty_pos( viter->rows, movetox, movetoy ), "dig the building first.");
-
             // get bd.
             auto bd = get_building( viter->rows, origin );
             eosio::check( bd.id == id, "id is not match");
